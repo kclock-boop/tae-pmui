@@ -1,7 +1,13 @@
 type InputField={id:string;text:string;context:string;editable:boolean};
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"no-store"}});
 export async function POST(request:Request) {
-  if(request.headers.get("origin") && request.headers.get("origin")!==new URL(request.url).origin) return json({error:"다른 출처의 요청은 허용하지 않습니다."},403);
+  const origin = request.headers.get("origin");
+  const fetchSite = request.headers.get("sec-fetch-site");
+  const isCrossOrigin = fetchSite === "cross-site" || fetchSite === "same-site";
+  // The browser knows the public origin even when a deployment proxy rewrites request.url.
+  if (isCrossOrigin || (origin && fetchSite !== "same-origin" && origin !== new URL(request.url).origin)) {
+    return json({error:"다른 출처의 요청은 허용하지 않습니다."},403);
+  }
   try {
     const raw=await request.text(); if(raw.length>350000) return json({error:"문서의 텍스트가 너무 깁니다."},413);
     const b=JSON.parse(raw);

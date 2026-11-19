@@ -37,5 +37,15 @@ globalThis.fetch=async()=>Response.json({choices:[{message:{content:'invalid jso
 globalThis.fetch=async()=>new Response('sensitive upstream message',{status:401});res=await POST(req());assert.equal(res.status,502);assert.ok(!(await res.text()).includes('sensitive'));
 for(const endpoint of ['http://localhost:8000/v1','https://127.0.0.1','https://metadata.google.internal','https://foo.nip.io','https://user:pass@example.com','https://api.example.com/?key=secret'])assert.equal((await POST(req({...base,endpoint}))).status,400);
 assert.equal((await POST(req({...base,apiKey:''}))).status,400);
+const proxied = fetchSite => new Request('http://internal-runtime:3000/api/generate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', Origin: 'https://example.site', 'Sec-Fetch-Site': fetchSite },
+  body: '{}',
+});
+const sameOrigin = await POST(proxied('same-origin'));
+assert.equal(sameOrigin.status, 400);
+assert.match((await sameOrigin.json()).error, /API 키/);
+assert.equal((await POST(proxied('cross-site'))).status, 403);
+assert.equal((await POST(proxied('same-site'))).status, 403);
 globalThis.fetch=originalFetch;
-console.log('PASS: DOCX round-trip, 8 template fields, XML escaping, line breaks, multi-run placeholders, table/page preservation, unchanged ZIP parts, API contract, response validation and endpoint validation.');
+console.log('PASS: DOCX round-trip, 8 template fields, XML escaping, line breaks, multi-run placeholders, table/page preservation, unchanged ZIP parts, API contract, response, endpoint and proxy origin validation.');
